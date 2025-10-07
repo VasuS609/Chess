@@ -1,17 +1,22 @@
-import { WebSocketServer } from "ws";
-import { GameManager } from "./GameManager";
+import { WebSocket, WebSocketServer } from "ws";
+import { GameManager } from "./GameManager.js";
 
-const wss = new WebSocketServer({ port: 8080 });
-const gameManger = new GameManager();
+const wss = new WebSocketServer({ port: 8081 });
 
-wss.on("connection", function connection(ws) {
-  ws.on("error", console.error);
-
-  ws.on("connection", function connection(ws) {
-    gameManger.addUser(ws);
-
-    ws.on("disconnect", () => gameManger.removeUser(ws));
+try {
+  wss.on("listening", () => {
+    console.log("WebSocket server started on port 8081");
   });
+} catch (e) {
+  console.log(e);
+}
 
-  ws.send("conected");
+const gameManager = new GameManager();
+
+wss.on("connection", (ws: WebSocket) => {
+  ws.on("error", console.error);
+  gameManager.addUser(ws);
+  ws.on("close", () => gameManager.removeUser(ws));
+
+  ws.send("vasu");
 });

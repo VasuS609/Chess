@@ -1,17 +1,50 @@
-import { WebSocket } from "ws"
+import { WebSocket } from "ws";
+import { Chess } from "chess.js";
+import { GAME_OVER } from "./messages.js";
 
 export class Game {
-  private player1 :WebSocket;
-  private player2: WebSocket;
-  private board: String;
-  private moves: String[];
+  public player1: WebSocket;
+  public player2: WebSocket;
+  public board: Chess;
+  private moves: string[];
   private startTime: Date;
 
-constructor (player1:WebSocket, player2:WebSocket){
-  this.player1 = player1;
-  this.player2 = player2 ;
-  this.board = "";
-  this.moves = [];
-  this.startTime = new Date()
+  constructor(player1: WebSocket, player2: WebSocket) {
+    this.player1 = player1;
+    this.player2 = player2;
+    this.board = new Chess();
+    this.moves = [];
+    this.startTime = new Date();
+  }
 
-}}
+  makeMove(socket: WebSocket, move: {
+    from: string;
+    to: string;
+    promotion?: string;
+  }) {
+    // ensure correct player's turn
+    const moveCount = this.moves.length;
+    if (moveCount % 2 === 0 && socket !== this.player1) return;
+    if (moveCount % 2 === 1 && socket !== this.player2) return;
+
+    try {
+      this.board.move(move);
+      this.moves.push(`${move.from}-${move.to}`);
+    } catch (e) {
+      console.log("Invalid move:", e);
+      return;
+    }
+
+    if (this.board.isGameOver()) {
+      const winner = this.board.turn() === "w" ? "black" : "white";
+      const payload = JSON.stringify({ type: GAME_OVER, payload: { winner } });
+      this.player1.send(payload);
+      this.player2.send(payload);
+      return;
+    }
+
+    const nextMovePayload = JSON.stringify({ type: "move", payload: move });
+    if (moveCount % 2 === 0) this.player2.send(nextMovePayload);
+    else this.player1.send(nextMovePayload);
+  }
+}
